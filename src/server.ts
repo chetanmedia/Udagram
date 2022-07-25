@@ -29,27 +29,47 @@ import {filterImageFromURL, deleteLocalFiles} from './util/util';
 
   /**************************************************************************** */
 
-  app.get( "/filteredimage", async ( req, res ) => {
-    let image_url = req.query.image_url;
-    if (image_url) {
-      filterImageFromURL(image_url).then((response) => {
-        res.sendFile(response);
-        res.on('finish', function() {
-          deleteLocalFiles([response]);
-        });
-      });
-    } else {
-      res.status(404).send("Please send the correct image_url");
+  app.get(
+    '/filteredimage',
+    async (req: express.Request, res: express.Response) => {
+      if (
+        req.query &&
+        req.query.image_url &&
+        typeof req.query.image_url === 'string'
+      ) {
+        const imageUrl: string = <string>req.query.image_url
+
+        if (!isValidUrl(imageUrl)) {
+          return res.status(400).send({ error: 'image_url is invalid' })
+        }
+
+        if (!isValidImage(imageUrl)) {
+          return res
+            .status(422)
+            .send({ error: 'image_url is not a valid image' })
+        }
+
+        try {
+          const image = await filterImageFromURL(imageUrl)
+          return res.sendFile(image, async () => {
+            await deleteLocalFiles([image])
+          })
+        } catch (error) {
+          return res
+            .status(422)
+            .send({ error: 'image_url could not be processed' })
+        }
+      } else {
+        res.status(400).send({ error: 'image_url is invalid' })
+      }
     }
-  });
-    
-  //! END @TODO1
-  
+  )
+
   // Root Endpoint
   // Displays a simple message to the user
-  app.get( "/", async ( req, res ) => {
-    res.send("try GET /filteredimage?image_url={{}}")
-  } );
+  app.get('/', async (req, res) => {
+    res.send('try GET /filteredimage?image_url={{}}')
+  })
   
 
   // Start the Server
